@@ -10,6 +10,8 @@
 	EXPORT ipa_algorithm
 
 	EXTERN _ipa_algorithm_c
+	EXTERN _malloc
+	EXTERN _free
 
 
 section .data

@@ -9,6 +9,7 @@
 	GLOBAL ipa_algorithm
 	EXPORT ipa_algorithm
 
+	EXTERN _ipa_algorithm_c
 
 
 section .data
@@ -39,6 +40,7 @@ DllMain:
 ;		int argc, char** argv	);	
 
 ipa_algorithm:
+	jmp _ipa_algorithm_c ;bypass
 	push ebp
 	mov ebp,esp
 	

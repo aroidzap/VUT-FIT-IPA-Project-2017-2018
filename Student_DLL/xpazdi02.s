@@ -26,6 +26,11 @@ DllMain:
 	ret 12
 
 
+; *** Array Of Structures ***
+;
+;	char *data == {B,G,R}, {B,G,R}, {B,G,R}, ...
+;
+
 ; void ipa_algorithm(
 ;		unsigned char *input_data, 
 ;		unsigned char *output_data, 

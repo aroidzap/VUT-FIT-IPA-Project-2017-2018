@@ -13,10 +13,9 @@
 #include <intrin.h>
 #include <inttypes.h>
 #include <windows.h>
-#include "ipa_algorithm.h"
 #include "ipa_tool.h"
 
-#define WIN_WIDTH 800.0
+#define WIN_WIDTH 800.0f
 #define PROJECT_NAME "IPA - graficky editor 2017"
 #define PROJECT_NAME_WIN_IN "IPA - graficky editor 2017-IN"
 #define PROJECT_NAME_WIN_OUT "IPA - graficky editor 2017-OUT"
@@ -45,12 +44,12 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	//koeficient pro prijatelne vykresleni
-	float q = WIN_WIDTH / image.cols;
+	float q = WIN_WIDTH / static_cast<float>(image.cols);
 	
 	//vytvoreni vystupniho obrazu	
 	image.copyTo(output);
 
-	cv::resize(image, window_img, cv::Size(q*image.cols, q*image.rows));
+	cv::resize(image, window_img, cv::Size(static_cast<int>(q*image.cols), static_cast<int>(q*image.rows)));
 
 	namedWindow(PROJECT_NAME_WIN_IN, WINDOW_AUTOSIZE);
 	imshow(PROJECT_NAME_WIN_IN, window_img);
@@ -80,7 +79,7 @@ int main(int argc, char** argv)
 
 	namedWindow(PROJECT_NAME_WIN_OUT, WINDOW_AUTOSIZE);
 	
-	cv::resize(output, output, cv::Size(q*image.cols, q*image.rows));
+	cv::resize(output, output, cv::Size(static_cast<int>(q*image.cols), static_cast<int>(q*image.rows)));
 	imshow(PROJECT_NAME_WIN_OUT, output);
 	
 	waitKey(0); 

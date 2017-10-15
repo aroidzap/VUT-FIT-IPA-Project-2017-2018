@@ -1,7 +1,7 @@
 /*Sablona pro projekty do predmetu IPA, tema graficky editor
 *Autor: Tomas Goldmann, igoldmann@fit.vutbr.cz
 *
-*LOGIN STUDENTA:
+*LOGIN STUDENTA: xpazdi02
 */
 
 

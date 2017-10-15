@@ -1,4 +1,4 @@
-;Login studenta:
+;Login studenta: xpazdi02
 
 [BITS 32]
 

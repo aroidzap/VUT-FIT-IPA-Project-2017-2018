@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
 #define PI (3.141592653589793)
-#define DEG_TO_RAD(x) ((x)*180.0/PI)
+#define DEG_TO_RAD(x) ((x)*PI/180.0)
 
 __declspec(dllexport) void __cdecl ipa_algorithm_c(unsigned char *, unsigned char *, unsigned int, unsigned int, int, char**);
 
@@ -24,9 +24,9 @@ void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned cha
 
 void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height, int argc, char** argv)
 {
-    float angle = (float) DEG_TO_RAD(45);
+    float angle = (float) DEG_TO_RAD(45.0);
     vec2 tmp, pivot = { .u = width / 2.0f,.v = height / 2.0f };
-    mat2 rot_matrix = { cosf(-angle), -sinf(-angle), sinf(-angle), cosf(-angle) };
+    mat2 rot_matrix_inv = { cosf(angle), sinf(angle), -sinf(angle), cosf(angle) };
 
     vec2 *coords = malloc(sizeof(vec2)*width*height);
 
@@ -35,7 +35,7 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
     tmp.u = -pivot.u; tmp.v = -pivot.v;
     translate_coords(coords, tmp, width, height);
 
-    rotate_coords(coords, rot_matrix, width, height);
+    rotate_coords(coords, rot_matrix_inv, width, height);
 
     tmp.u = +pivot.u; tmp.v = +pivot.v;
     translate_coords(coords, tmp, width, height);
@@ -53,9 +53,9 @@ void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned cha
             unsigned int coord_idx = y*width + x;
             unsigned int transformed_idx = 3 * ((unsigned int)(coords[coord_idx].v*width + coords[coord_idx].u));
             if (transformed_idx < width*height * 3) {
-                output_data[idx + 0] = output_data[transformed_idx + 0];    //B
-                output_data[idx + 1] = output_data[transformed_idx + 1];    //G
-                output_data[idx + 2] = output_data[transformed_idx + 2];    //R
+                output_data[idx + 0] = input_data[transformed_idx + 0];    //B
+                output_data[idx + 1] = input_data[transformed_idx + 1];    //G
+                output_data[idx + 2] = input_data[transformed_idx + 2];    //R
             }
             else { //out of range
                 output_data[idx + 0] = 0;    //B

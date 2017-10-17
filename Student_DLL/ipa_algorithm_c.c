@@ -86,7 +86,7 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
     float angle_rad = (float)DEG_TO_RAD(arg.angle);
     vec2 scale = { .u = arg.scale,.v = arg.scale };
     vec2 tmp, pivot = { .u = arg.pivot.u * width,.v = arg.pivot.v * height };
-    mat2 rot_scale_matrix_inv = { cosf(angle_rad) / scale.u, sinf(angle_rad), -sinf(angle_rad), cosf(angle_rad) / scale.v };
+    mat2 rot_scale_matrix_inv = { cosf(angle_rad) / scale.u, sinf(angle_rad) / scale.v, -sinf(angle_rad) / scale.u, cosf(angle_rad) / scale.v };
 
     vec2 *coords = malloc(sizeof(vec2)*width*height);
 

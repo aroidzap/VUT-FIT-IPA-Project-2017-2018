@@ -15,6 +15,14 @@ typedef struct vec2_t {
     float u, v;
 } vec2;
 
+typedef struct vec2i_t {
+    int u, v;
+} vec2i;
+
+typedef struct vec3_t {
+    float x, y, z;
+} vec3;
+
 typedef struct options_t {
     float angle;
     float scale;
@@ -31,6 +39,7 @@ void transform_coords(vec2 *coords, mat2 matrix, unsigned int width, unsigned in
 
 void display_coords(vec2 *coords, unsigned char *output_data, unsigned int width, unsigned int height);
 void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
+void transform_image_bilinear(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
 
 bool load_args(int argc, char **argv, options *args){
     /*
@@ -101,9 +110,49 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
     translate_coords(coords, tmp, width, height);
 
     //display_coords(coords, output_data, width, height);
-    transform_image_no_aa(coords, input_data, output_data, width, height);
+    //transform_image_no_aa(coords, input_data, output_data, width, height);
+    transform_image_bilinear(coords, input_data, output_data, width, height);
 
     free(coords);
+}
+
+void transform_image_bilinear(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height) {
+    for (unsigned int y = 0; y < height; y++) {
+        for (unsigned int x = 0; x < width; x++)
+        {
+            unsigned int id = y*width + x;
+
+            vec3 col = { 0.0f, 0.0f ,0.0f };
+
+            vec2i coord[4] = {  {.u = (int)coords[id].u,     .v = (int)coords[id].v },
+                                {.u = (int)coords[id].u + 1, .v = (int)coords[id].v },
+                                {.u = (int)coords[id].u,     .v = (int)coords[id].v + 1 },
+                                {.u = (int)coords[id].u + 1, .v = (int)coords[id].v + 1 } };
+
+            vec2 d = {  .u = coords[id].u - (float)((int)coords[id].u),
+                        .v = coords[id].v - (float)((int)coords[id].v)  };
+            
+
+            float perc[4] = { (1.0f - d.u)*(1.0f - d.v), d.u*(1.0f - d.v) ,(1.0f - d.u)*d.v ,d.u*d.v };
+
+            for (int i = 0; i < 4; i++) {
+                if (coord[i].u > 0 && coord[i].u < (int)width && coord[i].v>0 && coord[i].v < (int)height) {
+                    unsigned int transformed_idx = 3 * (coord[i].v*width + coord[i].u);
+                    col.x += input_data[transformed_idx + 0] * perc[i];
+                    col.y += input_data[transformed_idx + 1] * perc[i];
+                    col.z += input_data[transformed_idx + 2] * perc[i];
+                }
+            }
+            col.x = col.x < 0 ? 0 : col.x > 255 ? 255 : col.x;
+            col.y = col.y < 0 ? 0 : col.y > 255 ? 255 : col.y;
+            col.z = col.z < 0 ? 0 : col.z > 255 ? 255 : col.z;
+
+            unsigned int idx = 3 * id;
+            output_data[idx + 0] = (unsigned char)col.x;    //B
+            output_data[idx + 1] = (unsigned char)col.y;    //G
+            output_data[idx + 2] = (unsigned char)col.z;    //R
+        }
+    }
 }
 
 void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height) {

@@ -27,8 +27,7 @@ vec2 mat2_mul_vec2(vec2 vec, mat2 mat);
 
 void fill_coords(vec2 *coords, unsigned int width, unsigned int height);
 void translate_coords(vec2 *coords, vec2 pivot, unsigned int width, unsigned int height);
-void scale_coords(vec2 *coords, vec2 scale, unsigned int width, unsigned int height);
-void rotate_coords(vec2 *coords, mat2 rotation_matrix, unsigned int width, unsigned int height);
+void transform_coords(vec2 *coords, mat2 matrix, unsigned int width, unsigned int height);
 
 void display_coords(vec2 *coords, unsigned char *output_data, unsigned int width, unsigned int height);
 void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
@@ -85,9 +84,9 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
     }
 
     float angle_rad = (float)DEG_TO_RAD(arg.angle);
-    vec2 scale_inv = { .u = 1.0f / arg.scale,.v = 1.0f / arg.scale };
+    vec2 scale = { .u = arg.scale,.v = arg.scale };
     vec2 tmp, pivot = { .u = arg.pivot.u * width,.v = arg.pivot.v * height };
-    mat2 rot_matrix_inv = { cosf(angle_rad), sinf(angle_rad), -sinf(angle_rad), cosf(angle_rad) };
+    mat2 rot_scale_matrix_inv = { cosf(angle_rad) / scale.u, sinf(angle_rad), -sinf(angle_rad), cosf(angle_rad) / scale.v };
 
     vec2 *coords = malloc(sizeof(vec2)*width*height);
 
@@ -96,8 +95,7 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
     tmp.u = -pivot.u; tmp.v = -pivot.v;
     translate_coords(coords, tmp, width, height);
 
-    scale_coords(coords, scale_inv, width, height);
-    rotate_coords(coords, rot_matrix_inv, width, height);
+    transform_coords(coords, rot_scale_matrix_inv, width, height);
 
     tmp.u = +pivot.u; tmp.v = +pivot.v;
     translate_coords(coords, tmp, width, height);
@@ -136,25 +134,14 @@ vec2 mat2_mul_vec2(vec2 vec, mat2 mat) {
     return tmp;
 }
 
-void rotate_coords(vec2 *coords, mat2 rotation_matrix, unsigned int width, unsigned int height) {
+void transform_coords(vec2 *coords, mat2 matrix, unsigned int width, unsigned int height) {
     for (unsigned int y = 0; y < height; y++) {
         for (unsigned int x = 0; x < width; x++) {
             unsigned int idx = y*width + x;
-            coords[idx] = mat2_mul_vec2(coords[idx], rotation_matrix);
+            coords[idx] = mat2_mul_vec2(coords[idx], matrix);
         }
     }
 }
-
-void scale_coords(vec2 *coords, vec2 scale, unsigned int width, unsigned int height) {
-    for (unsigned int y = 0; y < height; y++) {
-        for (unsigned int x = 0; x < width; x++) {
-            unsigned int idx = y*width + x;
-            coords[idx].u *= scale.u;
-            coords[idx].v *= scale.v;
-        }
-    }
-}
-
 
 void translate_coords(vec2 *coords, vec2 pivot, unsigned int width, unsigned int height) {
     for (unsigned int y = 0; y < height; y++) {

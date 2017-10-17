@@ -1,5 +1,11 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
+#include <string.h>
+#include <stdbool.h>
+
 #define PI (3.141592653589793)
 #define DEG_TO_RAD(x) ((x)*PI/180.0)
 
@@ -8,6 +14,12 @@ __declspec(dllexport) void __cdecl ipa_algorithm_c(unsigned char *, unsigned cha
 typedef struct vec2_t {
     float u, v;
 } vec2;
+
+typedef struct options_t {
+    float angle;
+    float scale;
+    vec2 pivot;
+}options;
 
 typedef float mat2[4];
 
@@ -21,12 +33,61 @@ void rotate_coords(vec2 *coords, mat2 rotation_matrix, unsigned int width, unsig
 void display_coords(vec2 *coords, unsigned char *output_data, unsigned int width, unsigned int height);
 void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
 
+bool load_args(int argc, char **argv, options *args){
+    /*
+    *   -a -angle ANGLE_DEGREES
+    *   -s -scale SCALE
+    *   -p -pivot PIVOT_X PIVOT_Y       note: range <0,1>
+    */
+
+    // starting from argument #2, ignoring executable path and image input
+    for (int i = 2; i < argc; i++) {
+        if (strcmp("-a", argv[i]) == 0 || strcmp("-angle", argv[i]) == 0) {
+            i++; if (i >= argc) { return false; }
+            if (sscanf(argv[i], "%f", &args->angle) != 1) {
+                return false;
+            }
+        }
+        else if (strcmp("-s", argv[i]) == 0 || strcmp("-scale", argv[i]) == 0) {
+            i++; if (i >= argc) { return false; }
+            if (sscanf(argv[i], "%f", &args->scale) != 1) {
+                return false;
+            }
+        }
+        else if (strcmp("-p", argv[i]) == 0 || strcmp("-pivot", argv[i]) == 0) {
+            i++; if (i >= argc) { return false; }
+            if (sscanf(argv[i], "%f", &args->pivot.u) != 1) {
+                return false;
+            }
+            i++; if (i >= argc) { return false; }
+            if (sscanf(argv[i], "%f", &args->pivot.v) != 1) {
+                return false;
+            }
+        }
+        else {
+            return false;
+        }
+    }
+    return true;
+}
 
 void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height, int argc, char** argv)
 {
-    float angle = (float) DEG_TO_RAD(45.0);
-    vec2 tmp, pivot = { .u = width / 2.0f,.v = height / 2.0f };
-    mat2 rot_matrix_inv = { cosf(angle), sinf(angle), -sinf(angle), cosf(angle) };
+    //defaults
+    options arg = { .scale = 1.0f,
+                    .angle = 0.0f,
+                    .pivot = {.u = 0.5f,.v = 0.5f}  };
+
+    if (!load_args(argc, argv, &arg)) { 
+        fprintf(stderr, "Warning: wrong arguments!\n\n");
+        printf("Usage: display_image ImageToLoadAndDisplay [-a|-angle ANGLE_DEGREES] [-s|-scale SCALE] [-p|-pivot PIVOT_X PIVOT_Y]\n\n");
+        return;
+    }
+
+    float angle_rad = (float)DEG_TO_RAD(arg.angle);
+    vec2 scale_inv = { .u = 1.0f / arg.scale,.v = 1.0f / arg.scale };
+    vec2 tmp, pivot = { .u = arg.pivot.u * width,.v = arg.pivot.v * height };
+    mat2 rot_matrix_inv = { cosf(angle_rad), sinf(angle_rad), -sinf(angle_rad), cosf(angle_rad) };
 
     vec2 *coords = malloc(sizeof(vec2)*width*height);
 
@@ -35,6 +96,7 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
     tmp.u = -pivot.u; tmp.v = -pivot.v;
     translate_coords(coords, tmp, width, height);
 
+    scale_coords(coords, scale_inv, width, height);
     rotate_coords(coords, rot_matrix_inv, width, height);
 
     tmp.u = +pivot.u; tmp.v = +pivot.v;
@@ -49,10 +111,11 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
 void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height) {
     for (unsigned int y = 0; y < height; y++) {
         for (unsigned int x = 0; x < width; x++) {
-            unsigned int idx = 3 * (y*width + x);
-            unsigned int coord_idx = y*width + x;
-            unsigned int transformed_idx = 3 * ((unsigned int)(coords[coord_idx].v*width + coords[coord_idx].u));
-            if (transformed_idx < width*height * 3) {
+            unsigned int id = y*width + x;
+            vec2 coord = coords[id];
+            unsigned int idx = 3 * id;
+            if (coord.u > 0 && coord.u < width && coord.v>0 && coord.v < height) {
+                unsigned int transformed_idx = 3 * (((unsigned int)coord.v)*width + ((unsigned int)coord.u));
                 output_data[idx + 0] = input_data[transformed_idx + 0];    //B
                 output_data[idx + 1] = input_data[transformed_idx + 1];    //G
                 output_data[idx + 2] = input_data[transformed_idx + 2];    //R

@@ -9,6 +9,9 @@
 	GLOBAL ipa_algorithm
 	EXPORT ipa_algorithm
 
+	EXTERN _ipa_algorithm_c
+	EXTERN _malloc
+	EXTERN _free
 
 
 section .data
@@ -24,8 +27,22 @@ DllMain:
 	pop ebp
 	mov eax,dword 1
 	ret 12
-		
+
+
+; *** Array Of Structures ***
+;
+;	char *data == {B,G,R}, {B,G,R}, {B,G,R}, ...
+;
+
+; void ipa_algorithm(
+;		unsigned char *input_data, 
+;		unsigned char *output_data, 
+;		unsigned int width, 
+;		unsigned int height, 
+;		int argc, char** argv	);	
+
 ipa_algorithm:
+	jmp _ipa_algorithm_c ;bypass
 	push ebp
 	mov ebp,esp
 	

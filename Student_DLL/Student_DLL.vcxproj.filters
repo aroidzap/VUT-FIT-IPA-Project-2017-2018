@@ -19,4 +19,9 @@
       <Filter>Source Files</Filter>
     </NASM>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ipa_algorithm_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
 </Project>

@@ -29,7 +29,7 @@ typedef void(*Ipa_algorithm)(unsigned char *input_data, unsigned char *output_da
 int main(int argc, char** argv)
 {
 	unsigned __int64 cycles_start = 0;
-	if (argc != 2)
+	if (argc < 2)
 	{
 		cout << " Usage: display_image ImageToLoadAndDisplay" << endl;
 		return -1;

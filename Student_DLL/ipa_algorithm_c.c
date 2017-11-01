@@ -36,6 +36,7 @@ vec2 mat2_mul_vec2(vec2 vec, mat2 mat);
 void fill_coords(vec2 *coords, unsigned int width, unsigned int height);
 void translate_coords(vec2 *coords, vec2 pivot, unsigned int width, unsigned int height);
 void transform_coords(vec2 *coords, mat2 matrix, unsigned int width, unsigned int height);
+void transform_coords_avx2(vec2 *coords_64byte_align, mat2 matrix, unsigned int count);
 
 void display_coords(vec2 *coords, unsigned char *output_data, unsigned int width, unsigned int height);
 void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
@@ -97,14 +98,16 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
     vec2 tmp, pivot = { .u = arg.pivot.u * width,.v = arg.pivot.v * height };
     mat2 rot_scale_matrix_inv = { cosf(angle_rad) / scale.u, sinf(angle_rad) / scale.v, -sinf(angle_rad) / scale.u, cosf(angle_rad) / scale.v };
 
-    vec2 *coords = malloc(sizeof(vec2)*width*height);
+	unsigned int count = width * height;
+	//TODO: count % 4 == 0
+	vec2 *coords = _aligned_malloc(sizeof(vec2)*count, 64);
 
     fill_coords(coords, width, height);
 
     tmp.u = -pivot.u; tmp.v = -pivot.v;
     translate_coords(coords, tmp, width, height);
 
-    transform_coords(coords, rot_scale_matrix_inv, width, height);
+    transform_coords_avx2(coords, rot_scale_matrix_inv, width * height);
 
     tmp.u = +pivot.u; tmp.v = +pivot.v;
     translate_coords(coords, tmp, width, height);
@@ -113,7 +116,7 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
     //transform_image_no_aa(coords, input_data, output_data, width, height);
     transform_image_bilinear(coords, input_data, output_data, width, height);
 
-    free(coords);
+	_aligned_free(coords);
 }
 
 void transform_image_bilinear(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height) {
@@ -190,6 +193,40 @@ void transform_coords(vec2 *coords, mat2 matrix, unsigned int width, unsigned in
             coords[idx] = mat2_mul_vec2(coords[idx], matrix);
         }
     }
+}
+
+void transform_coords_avx2(vec2 *coords_64byte_align, mat2 matrix, unsigned int count) {
+	// +- 3 cycles per 1 vector transformation
+	__asm {
+		mov eax, matrix
+		vbroadcastf128 ymm0, [eax]
+		vpermilps ymm6, ymm0, 0x44 ;//0b01000100
+		vpermilps ymm7, ymm0, 0xEE ;//0b11101110
+
+		mov ecx, count
+		shr ecx, 2 ;// divide our count by 4 (we are processing 4x2 floats)
+		mov eax, coords_64byte_align
+
+	l_loop:
+		test ecx, ecx
+		jz l_break
+
+		vmovaps ymm0, [eax]
+		vmulps ymm1, ymm0, ymm7
+		vmulps ymm0, ymm0, ymm6
+
+		vblendps ymm2, ymm0, ymm1, 0xAA ;//0b10101010
+		vblendps ymm1, ymm0, ymm1, 0x55 ;//0b01010101
+		vpermilps ymm1, ymm1, 0xB1 ;//0b10110001
+
+		vaddps ymm0, ymm1, ymm2
+		vmovaps [eax], ymm0
+
+		add eax, 32
+		dec ecx
+		jmp l_loop
+	l_break:
+	}
 }
 
 void translate_coords(vec2 *coords, vec2 pivot, unsigned int width, unsigned int height) {

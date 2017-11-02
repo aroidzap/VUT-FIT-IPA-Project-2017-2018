@@ -30,6 +30,7 @@ typedef struct options_t {
 }options;
 
 typedef float mat2[4];
+typedef float mat2x3[6];
 
 vec2 mat2_mul_vec2(vec2 vec, mat2 mat);
 
@@ -37,6 +38,7 @@ void fill_coords(vec2 *coords, unsigned int width, unsigned int height);
 void translate_coords(vec2 *coords, vec2 pivot, unsigned int width, unsigned int height);
 void transform_coords(vec2 *coords, mat2 matrix, unsigned int width, unsigned int height);
 void transform_coords_avx2(vec2 *coords_64byte_align, mat2 matrix, unsigned int count);
+void transform_coords_avx2_fma(vec2 *coords_64byte_align, mat2x3 matrix, unsigned int count);
 
 void display_coords(vec2 *coords, unsigned char *output_data, unsigned int width, unsigned int height);
 void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
@@ -96,7 +98,14 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
     float angle_rad = (float)DEG_TO_RAD(arg.angle);
     vec2 scale = { .u = arg.scale,.v = arg.scale };
     vec2 tmp, pivot = { .u = arg.pivot.u * width,.v = arg.pivot.v * height };
-    mat2 rot_scale_matrix_inv = { cosf(angle_rad) / scale.u, sinf(angle_rad) / scale.v, -sinf(angle_rad) / scale.u, cosf(angle_rad) / scale.v };
+
+	float a = cosf(angle_rad) / scale.u;
+	float b = sinf(angle_rad) / scale.v;
+	float c = -sinf(angle_rad) / scale.u;
+	float d = cosf(angle_rad) / scale.v;
+	float u = pivot.u;
+	float v = pivot.v;
+	mat2x3 transform_matrix_inv = { a, b, u - a*u - b*v, c, d, -c*u + v - d*v };
 
 	unsigned int count = width * height;
 	//TODO: count % 4 == 0
@@ -104,13 +113,7 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
 
     fill_coords(coords, width, height);
 
-    tmp.u = -pivot.u; tmp.v = -pivot.v;
-    translate_coords(coords, tmp, width, height);
-
-    transform_coords_avx2(coords, rot_scale_matrix_inv, width * height);
-
-    tmp.u = +pivot.u; tmp.v = +pivot.v;
-    translate_coords(coords, tmp, width, height);
+	transform_coords_avx2_fma(coords, transform_matrix_inv, width * height);
 
     //display_coords(coords, output_data, width, height);
     //transform_image_no_aa(coords, input_data, output_data, width, height);
@@ -207,9 +210,9 @@ void transform_coords_avx2(vec2 *coords_64byte_align, mat2 matrix, unsigned int 
 		shr ecx, 2 ;// divide our count by 4 (we are processing 4x2 floats)
 		mov eax, coords_64byte_align
 
-	l_loop:
+	l_loop0:
 		test ecx, ecx
-		jz l_break
+		jz l_break0
 
 		vmovaps ymm0, [eax]
 		vmulps ymm1, ymm0, ymm7
@@ -224,8 +227,66 @@ void transform_coords_avx2(vec2 *coords_64byte_align, mat2 matrix, unsigned int 
 
 		add eax, 32
 		dec ecx
-		jmp l_loop
-	l_break:
+		jmp l_loop0
+	l_break0:
+	}
+}
+
+void transform_coords_avx2_fma(vec2 * coords_64byte_align, mat2x3 matrix, unsigned int count)
+{
+	// Execute: coords[i] = vec2( mat2x3 matrix * vec3(vec2 coords[i], 1) )
+	// +- ??? cycles per 1 vector transformation
+
+	/*	Execution:
+	*	ymm1 = m4, m0, m4, m0, m4, m0, m4, m0
+	*	ymm2 = m5, m2, m5, m2, m5, m2, m5, m2
+	*	ymm3 = m3, m1, m3, m1, m3, m1, m3, m1
+	*	
+	*	while(i < count) {
+	*		ymm0 = v(3+i), u(3+i), v(2+i), u(2+i), v(1+i), u(1+i), v(0+i), u(0+i);
+	*	4X:	coords[i] = vec2( mat2x3 matrix * vec3(vec2 coords[i], 1) );
+	*		i += 4;
+	*	}
+	*/
+
+	__asm {
+		;// load matrix to ymm1, ymm2, ymm3
+		mov eax, matrix
+		vbroadcastss ymm0, [eax + 0 * 4];
+		vbroadcastss ymm1, [eax + 4 * 4];
+		vblendps ymm1, ymm0, ymm1, 0xAA;//0b10101010
+		vbroadcastss ymm0, [eax + 2 * 4];
+		vbroadcastss ymm2, [eax + 5 * 4];
+		vblendps ymm2, ymm0, ymm2, 0xAA;//0b10101010
+		vbroadcastss ymm0, [eax + 1 * 4];
+		vbroadcastss ymm3, [eax + 3 * 4];
+		vblendps ymm3, ymm0, ymm3, 0xAA;//0b10101010
+		
+		;// load &coords[0] to eax
+		mov eax, coords_64byte_align;
+
+		;// load end pointer to ecx
+		mov ecx, count ;// move count to ecx
+		and ecx, 0xfffffffc ;//TODO: check if divisible by 4
+		shl ecx, 3 ;// multiply ecx by sizeof(vec2) == 8
+		add ecx, eax
+
+	l_loop1:
+		cmp eax, ecx
+		je l_break1
+
+		vmovaps ymm0, [eax]
+
+		vmovaps ymm4, ymm1
+		vfmadd213ps ymm4, ymm0, ymm2
+		vpermilps ymm0, ymm0, 0xB1 ;//0b10110001
+		vfmadd213ps ymm0, ymm3, ymm4
+
+		vmovaps [eax], ymm0
+
+		add eax, 32
+		jmp l_loop1
+	l_break1:
 	}
 }
 

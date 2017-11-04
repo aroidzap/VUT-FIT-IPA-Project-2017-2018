@@ -42,7 +42,7 @@ void transform_coords_avx2_fma(vec2 *coords_64byte_align, mat2x3 matrix, unsigne
 void fill_transform_coords_avx2_fma(vec2 *coords_64byte_align, mat2x3 matrix, unsigned int width, unsigned int height);
 
 void display_coords(vec2 *coords, unsigned char *output_data, unsigned int width, unsigned int height);
-void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
+void transform_image_nearest(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
 void transform_image_bilinear(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
 
 bool load_args(int argc, char **argv, options *args){
@@ -143,7 +143,7 @@ void transform_image_bilinear(vec2 *coords, unsigned char *input_data, unsigned 
             float perc[4] = { (1.0f - d.u)*(1.0f - d.v), d.u*(1.0f - d.v) ,(1.0f - d.u)*d.v ,d.u*d.v };
 
             for (int i = 0; i < 4; i++) {
-                if (coord[i].u > 0 && coord[i].u < (int)width && coord[i].v>0 && coord[i].v < (int)height) {
+                if (coord[i].u >= 0 && coord[i].u < (int)width && coord[i].v >= 0 && coord[i].v < (int)height) {
                     unsigned int transformed_idx = 3 * (coord[i].v*width + coord[i].u);
                     col.x += input_data[transformed_idx + 0] * perc[i];
                     col.y += input_data[transformed_idx + 1] * perc[i];
@@ -162,13 +162,13 @@ void transform_image_bilinear(vec2 *coords, unsigned char *input_data, unsigned 
     }
 }
 
-void transform_image_no_aa(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height) {
+void transform_image_nearest(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height) {
     for (unsigned int y = 0; y < height; y++) {
         for (unsigned int x = 0; x < width; x++) {
             unsigned int id = y*width + x;
             vec2 coord = coords[id];
             unsigned int idx = 3 * id;
-            if (coord.u > 0 && coord.u < width && coord.v>0 && coord.v < height) {
+            if (coord.u >= 0 && coord.u < width && coord.v >= 0 && coord.v < height) {
                 unsigned int transformed_idx = 3 * (((unsigned int)coord.v)*width + ((unsigned int)coord.u));
                 output_data[idx + 0] = input_data[transformed_idx + 0];    //B
                 output_data[idx + 1] = input_data[transformed_idx + 1];    //G

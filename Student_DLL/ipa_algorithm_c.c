@@ -45,6 +45,8 @@ void display_coords(vec2 *coords, unsigned char *output_data, unsigned int width
 void transform_image_nearest(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
 void transform_image_bilinear(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
 
+void transform_image_nearest_avx2_fma(unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height);
+
 bool load_args(int argc, char **argv, options *args){
     /*
     *   -a -angle ANGLE_DEGREES
@@ -109,18 +111,8 @@ void ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, unsi
 	float v = pivot.v;
 	mat2x3 transform_matrix_inv = { a, b, u - a*u - b*v, c, d, -c*u + v - d*v };
 
-	unsigned int coords_width = width + 3 & ~3; //add padding, count must be multiple of 4
-	unsigned int coords_height = height;
-
-	vec2 *coords = _aligned_malloc(sizeof(vec2) * coords_width * coords_height, 64);
-
-	fill_transform_coords_avx2_fma(coords, transform_matrix_inv, coords_width, coords_height);
-
-    //display_coords(coords, output_data, width, height);
-    //transform_image_no_aa(coords, input_data, output_data, width, height);
-    transform_image_bilinear(coords, input_data, output_data, width, height);
-
-	_aligned_free(coords);
+	//TODO: check minimal width == 4 and width*height divisibility by 4
+	transform_image_nearest_avx2_fma(input_data, output_data, width, height);
 }
 
 void transform_image_bilinear(vec2 *coords, unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height) {
@@ -392,6 +384,158 @@ void fill_transform_coords_avx2_fma(vec2 * coords_64byte_align, mat2x3 matrix, u
 
 		;// save coordinate to memory
 		vmovaps [ebx], ymm7
+
+		add ebx, 32
+		jmp l_loop1
+	l_break1:
+	}
+}
+
+void transform_image_nearest_avx2_fma(unsigned char *input_data, unsigned char *output_data, unsigned int width, unsigned int height)
+{
+	// Execute: coords[j, i] = vec2( mat2x3 matrix * vec3(i % width, j % height, 1) )
+	// +- ??? cycles per 1 vector transformation (average of multiple measurements)
+
+	/*	Execution:
+	*	ymm1 = m4, m0, m4, m0, m4, m0, m4, m0
+	*	ymm2 = m5, m2, m5, m2, m5, m2, m5, m2
+	*	ymm3 = m3, m1, m3, m1, m3, m1, m3, m1
+	*	
+	*	while(i < count) {
+	*		ymm0 = v(3+i), u(3+i), v(2+i), u(2+i), v(1+i), u(1+i), v(0+i), u(0+i);
+	*	4X:	coords[i] = vec2( mat2x3 matrix * vec3(vec2 coords[i], 1) );
+	*	4X: TODO: popis
+	*	}
+	*/
+
+	__asm {
+		;// load matrix to ymm1, ymm2, ymm3
+		mov eax, matrix
+		vbroadcastss ymm0, [eax + 0 * 4];
+		vbroadcastss ymm1, [eax + 4 * 4];
+		vblendps ymm1, ymm0, ymm1, 0xAA;//0b10101010
+		vbroadcastss ymm0, [eax + 2 * 4];
+		vbroadcastss ymm2, [eax + 5 * 4];
+		vblendps ymm2, ymm0, ymm2, 0xAA;//0b10101010
+		vbroadcastss ymm0, [eax + 1 * 4];
+		vbroadcastss ymm3, [eax + 3 * 4];
+		vblendps ymm3, ymm0, ymm3, 0xAA;//0b10101010
+		
+		;// load &coords[0] to ebx
+		mov ebx, coords_64byte_align;
+
+		;// load end pointer to ecx
+		mov eax, height
+		mov edx, width
+		mul edx
+		mov ecx, eax ;// move width * height to ecx
+		and ecx, 0xfffffffc ;//TODO: check if divisible by 4
+		shl ecx, 3 ;// multiply ecx by sizeof(vec2) == 8
+		add ecx, ebx
+
+		;// load auxiliary values
+		mov eax, width
+		movd xmm0, eax
+		vpbroadcastd ymm0, xmm0 ;//width
+		mov eax, -1
+		movd xmm5, eax
+		vpbroadcastd ymm5, xmm5 ;//-1
+		vblendps ymm5, ymm0, ymm5, 0xAA;//0b10101010
+		vcvtdq2ps ymm5, ymm5
+		;// ymm5 = -1 w -1 w -1 w -1 w
+
+		mov eax, 4
+		movd xmm0, eax
+		vpbroadcastd ymm0, xmm0
+		mov eax, 0
+		movd xmm6, eax
+		vpbroadcastd ymm6, xmm6
+		vblendps ymm6, ymm0, ymm6, 0xAA;//0b10101010
+		vcvtdq2ps ymm6, ymm6
+		;// ymm6 = 0 4 0 4 0 4 0 4
+
+		mov eax, 3
+		movd xmm0, eax
+		vpbroadcastd ymm0, xmm0 ;//3
+		mov edx, 3
+		mov eax, width
+		mul edx
+		movd xmm8, eax
+		vpbroadcastd ymm8, xmm8 ;//3 * width
+		vblendps ymm8, ymm0, ymm8, 0xAA;//0b10101010
+		vcvtdq2ps ymm8, ymm8
+		;// ymm8 = 3w 3 3w 3 3w 3 3w 3
+
+		vpxor ymm10, ymm10, ymm10
+		vcvtdq2ps ymm10, ymm10
+		;// ymm10 = 0 0 0 0 0 0 0 0
+
+		mov eax, 0
+		movd xmm0, eax
+		vpbroadcastd ymm0, xmm0
+		mov eax, 1
+		movd xmm4, eax
+		vpbroadcastd ymm4, xmm4
+		vblendps ymm0, ymm0, ymm4, 0x04;//0b00000100
+		mov eax, 2
+		movd xmm4, eax
+		vpbroadcastd ymm4, xmm4
+		vblendps ymm0, ymm0, ymm4, 0x10;//0b00010000
+		mov eax, 3
+		movd xmm4, eax
+		vpbroadcastd ymm4, xmm4
+		vblendps ymm0, ymm0, ymm4, 0x40;//0b01000000
+		vcvtdq2ps ymm0, ymm0
+		;// ymm0 = 0 3 0 2 0 1 0 0
+		vsubps ymm0, ymm0, ymm6
+
+	l_loop1:
+		cmp ebx, ecx
+		je l_break1
+
+		;// get x and y position
+		vaddps ymm0, ymm0, ymm6
+		vcmpgeps ymm7, ymm0, ymm5
+		vpermilps ymm7, ymm7, 0xA0;//0b10100000
+		vandps ymm4, ymm5, ymm7
+		vsubps ymm0, ymm0, ymm4
+
+		;// perform coordinate transformation
+		vmovaps ymm4, ymm1
+		vfmadd213ps ymm4, ymm0, ymm2
+		vpermilps ymm7, ymm0, 0xB1 ;//0b10110001
+		vfmadd213ps ymm7, ymm3, ymm4
+
+		;// check coordinates
+		vcmpltps ymm4, ymm7, ymm5
+		vcmpgeps ymm9, ymm7, ymm10
+		vandps ymm4, ymm4, ymm9
+		vpermilps ymm9, ymm4, 0xB1;//0b10110001
+		vandps ymm4, ymm4, ymm9
+
+		;// transform coords to index
+		vmulps ymm7, ymm7, ymm8
+		vpermilps ymm9, ymm7, 0xB1;//0b10110001
+		vaddps ymm7, ymm7, ymm9
+
+		// ymm4 = UV3ok UV3ok UV2ok UV2ok UV1ok UV1ok UV0ok UV0ok
+		// ymm7 = UV3id UV3id UV2id UV2id UV1id UV1id UV0id UV0id
+		vgatherdps
+
+		/*
+		if (coord.u >= 0 && coord.u < width && coord.v >= 0 && coord.v < height) {
+                unsigned int transformed_idx = 3 * (((unsigned int)coord.v)*width + ((unsigned int)coord.u));
+                output_data[idx + 0] = input_data[transformed_idx + 0];    //B
+                output_data[idx + 1] = input_data[transformed_idx + 1];    //G
+                output_data[idx + 2] = input_data[transformed_idx + 2];    //R
+            }
+            else { //out of range
+                output_data[idx + 0] = 0;    //B
+                output_data[idx + 1] = 0;    //G
+                output_data[idx + 2] = 0;    //R
+            }
+        }
+		*/
 
 		add ebx, 32
 		jmp l_loop1

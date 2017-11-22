@@ -111,7 +111,7 @@ void _ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, uns
 	float v = pivot.v;
 	mat2x3 transform_matrix_inv = { a, b, u - a*u - b*v, c, d, -c*u + v - d*v };
 
-	//TODO: check minimal width == 8 and width*height divisibility by 8
+	//TODO: check minimal width == 4 and width*height divisibility by 8
 	transform_image_nearest_avx2_fma(input_data, output_data, transform_matrix_inv, width, height);
 }
 

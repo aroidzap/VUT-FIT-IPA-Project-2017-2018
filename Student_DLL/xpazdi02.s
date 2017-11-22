@@ -2,9 +2,6 @@
 
 [BITS 64]
 
-	GLOBAL DllMain
-	EXPORT DllMain
-
 	GLOBAL ipa_algorithm
 	EXPORT ipa_algorithm
 
@@ -95,6 +92,13 @@ transform_image_nearest_avx2_fma:
 	vcvtdq2ps ymm5, ymm5
 	;// ymm5 = -1 w -1 w -1 w -1 w
 
+	mov eax, [rbp+48];//height
+	movd xmm14, eax
+	vpbroadcastd ymm14, xmm14 ;//height
+	vblendps ymm14, ymm0, ymm14, 0xAA;//0b10101010
+	vcvtdq2ps ymm14, ymm14
+	;// ymm14 = h w h w h w h w
+
 	mov eax, 4
 	movd xmm0, eax
 	vpbroadcastd ymm0, xmm0
@@ -124,6 +128,14 @@ transform_image_nearest_avx2_fma:
 	movd xmm12, eax
 	vpbroadcastd ymm12, xmm12 
 	;// ymm12 = 8x 0xffffffff
+
+	mov rax, 0x0908060504020100
+	movq xmm0, rax
+	mov rax, 0xffffffff0e0d0c0a
+	movq xmm13, rax
+	vshufps xmm13, xmm0, xmm13, 0x44;//0b01000100
+	vperm2f128 ymm13, ymm13, ymm13, 0
+	;// ymm13 = 0xffffffff0e0d0c0a0908060504020100ffffffff0e0d0c0a0908060504020100
 
 	mov eax, 0
 	movd xmm0, eax
@@ -162,8 +174,11 @@ l_loop1:
 	vpermilps ymm7, ymm0, 0xB1 ;//0b10110001
 	vfmadd213ps ymm7, ymm3, ymm4
 
+	;// truncate coordinate
+	vroundps ymm7, ymm7, 0 ;//TODO: check rounding mode
+
 	;// check coordinates
-	vcmpgeps ymm4, ymm7, ymm5
+	vcmpgeps ymm4, ymm7, ymm14
 	vcmpltps ymm9, ymm7, ymm10
 	vorps ymm4, ymm4, ymm9
 	vpermilps ymm9, ymm4, 0xB1;//0b10110001
@@ -192,8 +207,11 @@ l_loop1:
 	vpermilps ymm11, ymm0, 0xB1 ;//0b10110001
 	vfmadd213ps ymm11, ymm3, ymm4
 
+	;// truncate coordinate
+	vroundps ymm11, ymm11, 0 ;//TODO: check rounding mode
+
 	;// check coordinates
-	vcmpgeps ymm4, ymm11, ymm5
+	vcmpgeps ymm4, ymm11, ymm14
 	vcmpltps ymm9, ymm11, ymm10
 	vorps ymm4, ymm4, ymm9
 	vpermilps ymm9, ymm4, 0xB1;//0b10110001
@@ -208,6 +226,8 @@ l_loop1:
 
 	;// ymm11 = UV7id UV7id UV6id UV6id UV5id UV5id UV4id UV4id (id is 0xffffffff if not valid)
 
+
+	;// MERGE COORDINATES
 	vblendps ymm7, ymm7, ymm11, 0xAA;//0b10101010
 
 	vperm2f128 ymm11, ymm7, ymm7, 1
@@ -219,13 +239,25 @@ l_loop1:
 
 	;// ymm7 = UV7id UV6id UV5id UV4id UV3id UV2id UV1id UV0id (id is 0xffffffff if not valid)
 
+
+	;// read pixels
 	vpxor ymm9, ymm9
 	vpcmpeqd ymm4, ymm7, ymm12
 	vandnps ymm4, ymm4, ymm12
 	vcvtps2dq ymm7, ymm7
 	vpgatherdd ymm9, [rsi + ymm7], ymm4
+	
+	;// save pixels
+	vpshufb ymm9, ymm9, ymm13
+	vperm2f128 ymm7, ymm9, ymm9, 0x11
+	vpermilps ymm7, ymm7, 0x39 ;//0b00111001
+	vblendps ymm9, ymm9, ymm7, 0x78 ;//0b01111000
+	vperm2f128 ymm7, ymm9, ymm9, 0x11
 
+	vmovups [rdi], xmm9
+	vmovlps [rdi+16], xmm7
 
+	add rdi, 24
 
 	sub ecx, 8
 	jmp l_loop1

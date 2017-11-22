@@ -64,65 +64,62 @@ transform_image_nearest_avx2_fma:
 	;// [rbp+48] == height	
 
 	;// load matrix to ymm1, ymm2, ymm3
-	vbroadcastss ymm0, [r8 + 0 * 4];
-	vbroadcastss ymm1, [r8 + 4 * 4];
-	vblendps ymm1, ymm0, ymm1, 0xAA;//0b10101010
-	vbroadcastss ymm0, [r8 + 2 * 4];
-	vbroadcastss ymm2, [r8 + 5 * 4];
-	vblendps ymm2, ymm0, ymm2, 0xAA;//0b10101010
-	vbroadcastss ymm0, [r8 + 1 * 4];
-	vbroadcastss ymm3, [r8 + 3 * 4];
-	vblendps ymm3, ymm0, ymm3, 0xAA;//0b10101010
+	vbroadcastss ymm0, [r8 + 0 * 4]
+	vbroadcastss ymm1, [r8 + 4 * 4]
+	vblendps ymm1, ymm0, ymm1, 0xAA ;//0b10101010
+	vbroadcastss ymm0, [r8 + 2 * 4]
+	vbroadcastss ymm2, [r8 + 5 * 4]
+	vblendps ymm2, ymm0, ymm2, 0xAA ;//0b10101010
+	vbroadcastss ymm0, [r8 + 1 * 4]
+	vbroadcastss ymm3, [r8 + 3 * 4]
+	vblendps ymm3, ymm0, ymm3, 0xAA ;//0b10101010
 
 	;// load coordinate count to ecx
-	mov eax, [rbp+48];//height
-	mov edx, r9d;//width
+	mov eax, [rbp+48] ;// height
+	mov edx, r9d ;// width
 	mul edx
 	mov ecx, eax ;// move width * height to ecx
 	and ecx, 0xfffffff8 ;// ensure divisibility by 8
 
 	;// load auxiliary values
-	mov eax, r9d;//width
+	mov eax, r9d ;// width
 	movd xmm0, eax
-	vpbroadcastd ymm0, xmm0 ;//width
+	vpbroadcastd ymm0, xmm0 ;// width
 	mov eax, -1
 	movd xmm5, eax
-	vpbroadcastd ymm5, xmm5 ;//-1
-	vblendps ymm5, ymm0, ymm5, 0xAA;//0b10101010
+	vpbroadcastd ymm5, xmm5 ;// -1
+	vblendps ymm5, ymm0, ymm5, 0xAA ;//0b10101010
 	vcvtdq2ps ymm5, ymm5
 	;// ymm5 = -1 w -1 w -1 w -1 w
 
-	mov eax, [rbp+48];//height
+	mov eax, [rbp+48] ;// height
 	movd xmm14, eax
-	vpbroadcastd ymm14, xmm14 ;//height
-	vblendps ymm14, ymm0, ymm14, 0xAA;//0b10101010
+	vpbroadcastd ymm14, xmm14 ;// height
+	vblendps ymm14, ymm0, ymm14, 0xAA ;//0b10101010
 	vcvtdq2ps ymm14, ymm14
 	;// ymm14 = h w h w h w h w
+
+	vpxor ymm10, ymm10, ymm10
+	;// ymm10 = 0 0 0 0 0 0 0 0
 
 	mov eax, 4
 	movd xmm0, eax
 	vpbroadcastd ymm0, xmm0
-	mov eax, 0
-	movd xmm6, eax
-	vpbroadcastd ymm6, xmm6
-	vblendps ymm6, ymm0, ymm6, 0xAA;//0b10101010
+	vblendps ymm6, ymm0, ymm10, 0xAA ;//0b10101010
 	vcvtdq2ps ymm6, ymm6
 	;// ymm6 = 0 4 0 4 0 4 0 4
 
 	mov eax, 3
 	movd xmm0, eax
-	vpbroadcastd ymm0, xmm0 ;//3
+	vpbroadcastd ymm0, xmm0 ;// 3
 	mov edx, 3
-	mov eax, r9d;//width
+	mov eax, r9d ;// width
 	mul edx
 	movd xmm8, eax
-	vpbroadcastd ymm8, xmm8 ;//3 * width
-	vblendps ymm8, ymm0, ymm8, 0xAA;//0b10101010
+	vpbroadcastd ymm8, xmm8 ;// 3 * width
+	vblendps ymm8, ymm0, ymm8, 0xAA ;//0b10101010
 	vcvtdq2ps ymm8, ymm8
 	;// ymm8 = 3w 3 3w 3 3w 3 3w 3
-
-	vpxor ymm10, ymm10, ymm10
-	;// ymm10 = 0 0 0 0 0 0 0 0
 
 	mov eax, -1
 	movd xmm12, eax
@@ -133,25 +130,23 @@ transform_image_nearest_avx2_fma:
 	movq xmm0, rax
 	mov rax, 0xffffffff0e0d0c0a
 	movq xmm13, rax
-	vshufps xmm13, xmm0, xmm13, 0x44;//0b01000100
+	vshufps xmm13, xmm0, xmm13, 0x44 ;//0b01000100
 	vperm2f128 ymm13, ymm13, ymm13, 0
 	;// ymm13 = 0xffffffff0e0d0c0a0908060504020100ffffffff0e0d0c0a0908060504020100
 
-	mov eax, 0
-	movd xmm0, eax
-	vpbroadcastd ymm0, xmm0
+	vxorps ymm0, ymm0
 	mov eax, 1
 	movd xmm4, eax
 	vpbroadcastd ymm4, xmm4
-	vblendps ymm0, ymm0, ymm4, 0x04;//0b00000100
+	vblendps ymm0, ymm0, ymm4, 0x04 ;//0b00000100
 	mov eax, 2
 	movd xmm4, eax
 	vpbroadcastd ymm4, xmm4
-	vblendps ymm0, ymm0, ymm4, 0x10;//0b00010000
+	vblendps ymm0, ymm0, ymm4, 0x10 ;//0b00010000
 	mov eax, 3
 	movd xmm4, eax
 	vpbroadcastd ymm4, xmm4
-	vblendps ymm0, ymm0, ymm4, 0x40;//0b01000000
+	vblendps ymm0, ymm0, ymm4, 0x40 ;//0b01000000
 	vcvtdq2ps ymm0, ymm0
 	;// ymm0 = 0 3 0 2 0 1 0 0
 	vsubps ymm0, ymm0, ymm6

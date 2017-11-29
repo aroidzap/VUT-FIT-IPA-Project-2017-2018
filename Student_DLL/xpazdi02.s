@@ -1,39 +1,41 @@
-;Login studenta: xpazdi02
+;/*
+;*	Soubor: xpazdi02.s
+;*	Projekt: Grafický editor: Rotace obrázku s antialiasingem, VUT FIT 2017/2018
+;*	Autor: Tomáš Pazdiora
+;*	Login: xpazdi02
+;*/
 
 [BITS 64]
 
-	GLOBAL ipa_algorithm
-	EXPORT ipa_algorithm
+GLOBAL ipa_algorithm
+EXPORT ipa_algorithm
 
-	GLOBAL transform_image_nearest_avx2_fma
-	EXPORT transform_image_nearest_avx2_fma
+GLOBAL transform_image_nearest_avx2_fma
+EXPORT transform_image_nearest_avx2_fma
 
-	EXTERN _ipa_algorithm_c
+EXTERN _ipa_algorithm_c
 
 section .data
 section .text
-
-; *** Array Of Structures ***
-;
-;	char *data == {B,G,R}, {B,G,R}, {B,G,R}, ...
-;
 
 ; void ipa_algorithm(
 ;		unsigned char *input_data, 
 ;		unsigned char *output_data, 
 ;		unsigned int width, 
 ;		unsigned int height, 
-;		int argc, char** argv	);	
+;		int argc, char** argv	);
+
+;	image data are coded in AOS (Array Of Structures)
+;	char *data == {B,G,R}, {B,G,R}, {B,G,R}, ...
 
 ipa_algorithm:
-	jmp _ipa_algorithm_c ;bypass
+	jmp _ipa_algorithm_c ;bypass, call C function
 	push rbp
 	mov rbp,rsp
 	
 	mov rsp,rbp
 	pop rbp
 	ret 0
-
 	
 ;// width * height must be divisible by 8
 ;void transform_image_nearest_avx2_fma(unsigned char *input_data, unsigned char *output_data, mat2x3 matrix, unsigned int width, unsigned int height);
@@ -73,6 +75,9 @@ transform_image_nearest_avx2_fma:
 	vbroadcastss ymm0, [r8 + 1 * 4]
 	vbroadcastss ymm3, [r8 + 3 * 4]
 	vblendps ymm3, ymm0, ymm3, 0xAA ;//0b10101010
+	;ymm1 = m4, m0, m4, m0, m4, m0, m4, m0
+	;ymm2 = m5, m2, m5, m2, m5, m2, m5, m2
+	;ymm3 = m3, m1, m3, m1, m3, m1, m3, m1
 
 	;// load coordinate count to ecx
 	mov eax, [rbp+48] ;// height
@@ -86,11 +91,12 @@ transform_image_nearest_avx2_fma:
 	movd xmm0, eax
 	vpbroadcastd ymm0, xmm0 ;// width
 	mov eax, -1
-	movd xmm5, eax
-	vpbroadcastd ymm5, xmm5 ;// -1
-	vblendps ymm5, ymm0, ymm5, 0xAA ;//0b10101010
+	movd xmm12, eax
+	vpbroadcastd ymm12, xmm12 ;// -1
+	vblendps ymm5, ymm0, ymm12, 0xAA ;//0b10101010
 	vcvtdq2ps ymm5, ymm5
 	;// ymm5 = -1 w -1 w -1 w -1 w
+	;// ymm12 = 8x 0xffffffff
 
 	mov eax, [rbp+48] ;// height
 	movd xmm14, eax
@@ -102,30 +108,6 @@ transform_image_nearest_avx2_fma:
 	vpxor ymm10, ymm10, ymm10
 	;// ymm10 = 0 0 0 0 0 0 0 0
 
-	mov eax, 4
-	movd xmm0, eax
-	vpbroadcastd ymm0, xmm0
-	vblendps ymm6, ymm0, ymm10, 0xAA ;//0b10101010
-	vcvtdq2ps ymm6, ymm6
-	;// ymm6 = 0 4 0 4 0 4 0 4
-
-	mov eax, 3
-	movd xmm0, eax
-	vpbroadcastd ymm0, xmm0 ;// 3
-	mov edx, 3
-	mov eax, r9d ;// width
-	mul edx
-	movd xmm8, eax
-	vpbroadcastd ymm8, xmm8 ;// 3 * width
-	vblendps ymm8, ymm0, ymm8, 0xAA ;//0b10101010
-	vcvtdq2ps ymm8, ymm8
-	;// ymm8 = 3w 3 3w 3 3w 3 3w 3
-
-	mov eax, -1
-	movd xmm12, eax
-	vpbroadcastd ymm12, xmm12 
-	;// ymm12 = 8x 0xffffffff
-
 	mov rax, 0x0908060504020100
 	movq xmm0, rax
 	mov rax, 0xffffffff0e0d0c0a
@@ -134,22 +116,21 @@ transform_image_nearest_avx2_fma:
 	vperm2f128 ymm13, ymm13, ymm13, 0
 	;// ymm13 = 0xffffffff0e0d0c0a0908060504020100ffffffff0e0d0c0a0908060504020100
 
-	vxorps ymm0, ymm0
-	mov eax, 1
-	movd xmm4, eax
-	vpbroadcastd ymm4, xmm4
-	vblendps ymm0, ymm0, ymm4, 0x04 ;//0b00000100
-	mov eax, 2
-	movd xmm4, eax
-	vpbroadcastd ymm4, xmm4
-	vblendps ymm0, ymm0, ymm4, 0x10 ;//0b00010000
-	mov eax, 3
-	movd xmm4, eax
-	vpbroadcastd ymm4, xmm4
-	vblendps ymm0, ymm0, ymm4, 0x40 ;//0b01000000
-	vcvtdq2ps ymm0, ymm0
-	;// ymm0 = 0 3 0 2 0 1 0 0
-	vsubps ymm0, ymm0, ymm6
+	vaddsubps ymm0, ymm10, ymm5
+	vpermilps ymm0, ymm0, 0xB1
+	vsubps ymm0, ymm10, ymm0
+	vblendps ymm4, ymm10, ymm0, 0x04 ;//0b00000100
+	vaddps ymm8, ymm0, ymm0
+	vblendps ymm4, ymm4, ymm8, 0x10 ;//0b00010000
+	vaddps ymm8, ymm8, ymm0
+	vblendps ymm4, ymm4, ymm8, 0x40 ;//0b01000000
+	vaddps ymm0, ymm8, ymm0
+	vblendps ymm6, ymm0, ymm10, 0xAA ;//0b10101010
+	vsubps ymm0, ymm4, ymm6
+	;// ymm8 = 3w 3 3w 3 3w 3 3w 3
+	;// ymm6 = 0 4 0 4 0 4 0 4
+
+	;// ymm0 = 0 3 0 2 0 1 0 0 - (0 4 0 4 0 4 0 4)	
 
 l_loop1:
 	cmp ecx, 0

@@ -30,6 +30,7 @@ typedef struct options_t {
 
 typedef float mat2x3[6];
 
+// requires width >= 4
 void transform_image_nearest_avx2_fma(unsigned char *input_data, unsigned char *output_data, mat2x3 matrix, unsigned int width, unsigned int height);
 
 bool load_args(int argc, char **argv, options *args){
@@ -84,6 +85,12 @@ void _ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, uns
         return;
     }
 
+	//check minimal width (required by transform_image_nearest_avx2_fma)
+	if (width < 4) {
+		fprintf(stderr, "Error: image must be at least 4 pixels wide!\n\n");
+		return;
+	}
+
     float angle_rad = (float)DEG_TO_RAD(arg.angle);
     vec2 scale = { .u = arg.scale,.v = arg.scale };
     vec2 pivot = { .u = arg.pivot.u * width,.v = arg.pivot.v * height };
@@ -98,6 +105,5 @@ void _ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, uns
 	mat2x3 transform_matrix_inv = { a, b, u - a*u - b*v, c, d, -c*u + v - d*v };
 
 	// call optimalized transformation function
-	//TODO: check minimal width == 4 and width*height divisibility by 8
 	transform_image_nearest_avx2_fma(input_data, output_data, transform_matrix_inv, width, height);
 }

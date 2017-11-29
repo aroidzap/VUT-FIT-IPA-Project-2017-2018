@@ -1,7 +1,7 @@
 ;/*
 ;*	Soubor: xpazdi02.s
-;*	Projekt: Grafick˝ editor: Rotace obr·zku s antialiasingem, VUT FIT 2017/2018
-;*	Autor: Tom·ö Pazdiora
+;*	Projekt: Grafick√Ω editor: Rotace obr√°zku s antialiasingem, VUT FIT 2017/2018
+;*	Autor: Tom√°≈° Pazdiora
 ;*	Login: xpazdi02
 ;*/
 

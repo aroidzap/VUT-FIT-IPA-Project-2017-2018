@@ -5,6 +5,8 @@
 ;*	Login: xpazdi02
 ;*/
 
+;%define WITHOUT_FMA
+
 [BITS 64]
 
 GLOBAL ipa_algorithm
@@ -54,6 +56,15 @@ ipa_algorithm:
 ;*	4X: TODO: popis
 ;*	}
 ;*/
+
+%macro _vfmadd213ps 3
+	%ifndef WITHOUT_FMA
+		vfmadd213ps %1, %2, %3
+	%else
+		vmulps %1, %1, %2
+		vaddps %1, %1, %3
+	%endif
+%endmacro
 
 transform_image_nearest_avx2_fma:
 	push rbp
@@ -166,9 +177,9 @@ _loop:
 
 	;// perform coordinate transformation
 	vmovaps ymm4, ymm1
-	vfmadd213ps ymm4, ymm0, ymm2
+	_vfmadd213ps ymm4, ymm0, ymm2
 	vpermilps ymm7, ymm0, 0xB1 ;//0b10110001
-	vfmadd213ps ymm7, ymm3, ymm4
+	_vfmadd213ps ymm7, ymm3, ymm4
 
 	;// truncate coordinate
 	vroundps ymm7, ymm7, 0x0B ;//Round toward zero (truncate), Do not signal precision exception on SNaN
@@ -199,9 +210,9 @@ _loop:
 
 	;// perform coordinate transformation
 	vmovaps ymm4, ymm1
-	vfmadd213ps ymm4, ymm0, ymm2
+	_vfmadd213ps ymm4, ymm0, ymm2
 	vpermilps ymm14, ymm0, 0xB1 ;//0b10110001
-	vfmadd213ps ymm14, ymm3, ymm4
+	_vfmadd213ps ymm14, ymm3, ymm4
 
 	;// truncate coordinate
 	vroundps ymm14, ymm14, 0x0B ;//Round toward zero (truncate), Do not signal precision exception on SNaN

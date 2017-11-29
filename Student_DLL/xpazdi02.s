@@ -91,19 +91,19 @@ transform_image_nearest_avx2_fma:
 	movd xmm0, eax
 	vpbroadcastd ymm0, xmm0 ;// width
 	mov eax, -1
-	movd xmm12, eax
-	vpbroadcastd ymm12, xmm12 ;// -1
-	vblendps ymm5, ymm0, ymm12, 0xAA ;//0b10101010
+	movd xmm11, eax
+	vpbroadcastd ymm11, xmm11 ;// -1
+	vblendps ymm5, ymm0, ymm11, 0xAA ;//0b10101010
 	vcvtdq2ps ymm5, ymm5
 	;// ymm5 = -1 w -1 w -1 w -1 w
-	;// ymm12 = 8x 0xffffffff
+	;// ymm11 = 8x 0xffffffff
 
 	mov eax, [rbp+48] ;// height
-	movd xmm14, eax
-	vpbroadcastd ymm14, xmm14 ;// height
-	vblendps ymm14, ymm0, ymm14, 0xAA ;//0b10101010
-	vcvtdq2ps ymm14, ymm14
-	;// ymm14 = h w h w h w h w
+	movd xmm9, eax
+	vpbroadcastd ymm9, xmm9 ;// height
+	vblendps ymm9, ymm0, ymm9, 0xAA ;//0b10101010
+	vcvtdq2ps ymm9, ymm9
+	;// ymm9 = h w h w h w h w
 
 	vpxor ymm10, ymm10, ymm10
 	;// ymm10 = 0 0 0 0 0 0 0 0
@@ -111,10 +111,10 @@ transform_image_nearest_avx2_fma:
 	mov rax, 0x0908060504020100
 	movq xmm0, rax
 	mov rax, 0xffffffff0e0d0c0a
-	movq xmm13, rax
-	vshufps xmm13, xmm0, xmm13, 0x44 ;//0b01000100
-	vperm2f128 ymm13, ymm13, ymm13, 0
-	;// ymm13 = 0xffffffff0e0d0c0a0908060504020100ffffffff0e0d0c0a0908060504020100
+	movq xmm12, rax
+	vshufps xmm12, xmm0, xmm12, 0x44 ;//0b01000100
+	vperm2f128 ymm12, ymm12, ymm12, 0
+	;// ymm12 = 0xffffffff0e0d0c0a0908060504020100ffffffff0e0d0c0a0908060504020100
 
 	vaddsubps ymm0, ymm10, ymm5
 	vpermilps ymm0, ymm0, 0xB1
@@ -154,16 +154,16 @@ l_loop1:
 	vroundps ymm7, ymm7, 0 ;//TODO: check rounding mode
 
 	;// check coordinates
-	vcmpgeps ymm4, ymm7, ymm14
-	vcmpltps ymm9, ymm7, ymm10
-	vorps ymm4, ymm4, ymm9
-	vpermilps ymm9, ymm4, 0xB1;//0b10110001
-	vorps ymm4, ymm4, ymm9
+	vcmpgeps ymm4, ymm7, ymm9
+	vcmpltps ymm13, ymm7, ymm10
+	vorps ymm4, ymm4, ymm13
+	vpermilps ymm13, ymm4, 0xB1;//0b10110001
+	vorps ymm4, ymm4, ymm13
 
 	;// transform coords to index
 	vmulps ymm7, ymm7, ymm8
-	vpermilps ymm9, ymm7, 0xB1;//0b10110001
-	vaddps ymm7, ymm7, ymm9
+	vpermilps ymm13, ymm7, 0xB1;//0b10110001
+	vaddps ymm7, ymm7, ymm13
 
 	vorps ymm7, ymm7, ymm4
 
@@ -172,65 +172,65 @@ l_loop1:
 	;// ANOTHER 4 PIXELS
 	;// get x and y position
 	vaddps ymm0, ymm0, ymm6
-	vcmpgeps ymm11, ymm0, ymm5
-	vpermilps ymm11, ymm11, 0xA0;//0b10100000
-	vandps ymm4, ymm5, ymm11
+	vcmpgeps ymm14, ymm0, ymm5
+	vpermilps ymm14, ymm14, 0xA0;//0b10100000
+	vandps ymm4, ymm5, ymm14
 	vsubps ymm0, ymm0, ymm4
 
 	;// perform coordinate transformation
 	vmovaps ymm4, ymm1
 	vfmadd213ps ymm4, ymm0, ymm2
-	vpermilps ymm11, ymm0, 0xB1 ;//0b10110001
-	vfmadd213ps ymm11, ymm3, ymm4
+	vpermilps ymm14, ymm0, 0xB1 ;//0b10110001
+	vfmadd213ps ymm14, ymm3, ymm4
 
 	;// truncate coordinate
-	vroundps ymm11, ymm11, 0 ;//TODO: check rounding mode
+	vroundps ymm14, ymm14, 0 ;//TODO: check rounding mode
 
 	;// check coordinates
-	vcmpgeps ymm4, ymm11, ymm14
-	vcmpltps ymm9, ymm11, ymm10
-	vorps ymm4, ymm4, ymm9
-	vpermilps ymm9, ymm4, 0xB1;//0b10110001
-	vorps ymm4, ymm4, ymm9
+	vcmpgeps ymm4, ymm14, ymm9
+	vcmpltps ymm13, ymm14, ymm10
+	vorps ymm4, ymm4, ymm13
+	vpermilps ymm13, ymm4, 0xB1;//0b10110001
+	vorps ymm4, ymm4, ymm13
 
 	;// transform coords to index
-	vmulps ymm11, ymm11, ymm8
-	vpermilps ymm9, ymm11, 0xB1;//0b10110001
-	vaddps ymm11, ymm11, ymm9
+	vmulps ymm14, ymm14, ymm8
+	vpermilps ymm13, ymm14, 0xB1;//0b10110001
+	vaddps ymm14, ymm14, ymm13
 
-	vorps ymm11, ymm11, ymm4
+	vorps ymm14, ymm14, ymm4
 
-	;// ymm11 = UV7id UV7id UV6id UV6id UV5id UV5id UV4id UV4id (id is 0xffffffff if not valid)
+	;// ymm14 = UV7id UV7id UV6id UV6id UV5id UV5id UV4id UV4id (id is 0xffffffff if not valid)
 
 
 	;// MERGE COORDINATES
-	vblendps ymm7, ymm7, ymm11, 0xAA;//0b10101010
+	vblendps ymm7, ymm7, ymm14, 0xAA;//0b10101010
 
-	vperm2f128 ymm11, ymm7, ymm7, 1
+	vperm2f128 ymm14, ymm7, ymm7, 1
 
 	vpermilps ymm7, ymm7, 0xD8;//0b11011000
-	vpermilps ymm11, ymm11, 0x8D;//0b10001101
+	vpermilps ymm14, ymm14, 0x8D;//0b10001101
 
-	vblendps ymm7, ymm7, ymm11, 0x3C;//0b00111100
+	vblendps ymm7, ymm7, ymm14, 0x3C;//0b00111100
 
 	;// ymm7 = UV7id UV6id UV5id UV4id UV3id UV2id UV1id UV0id (id is 0xffffffff if not valid)
 
 
 	;// read pixels
-	vpxor ymm9, ymm9
-	vpcmpeqd ymm4, ymm7, ymm12
-	vandnps ymm4, ymm4, ymm12
+	vpxor ymm13, ymm13
+	vpcmpeqd ymm4, ymm7, ymm11
+	vandnps ymm4, ymm4, ymm11
 	vcvtps2dq ymm7, ymm7
-	vpgatherdd ymm9, [rsi + ymm7], ymm4
+	vpgatherdd ymm13, [rsi + ymm7], ymm4
 	
 	;// save pixels
-	vpshufb ymm9, ymm9, ymm13
-	vperm2f128 ymm7, ymm9, ymm9, 0x11
+	vpshufb ymm13, ymm13, ymm12
+	vperm2f128 ymm7, ymm13, ymm13, 0x11
 	vpermilps ymm7, ymm7, 0x39 ;//0b00111001
-	vblendps ymm9, ymm9, ymm7, 0x78 ;//0b01111000
-	vperm2f128 ymm7, ymm9, ymm9, 0x11
+	vblendps ymm13, ymm13, ymm7, 0x78 ;//0b01111000
+	vperm2f128 ymm7, ymm13, ymm13, 0x11
 
-	vmovups [rdi], xmm9
+	vmovups [rdi], xmm13
 	vmovlps [rdi+16], xmm7
 
 	add rdi, 24

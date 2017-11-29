@@ -249,8 +249,7 @@ _loop:
 
 	;// read pixels
 	vpxor ymm13, ymm13
-	vpcmpeqd ymm4, ymm7, ymm11
-	vandnps ymm4, ymm4, ymm11
+	vandnps ymm4, ymm7, ymm11 ;// extract id mask
 	vcvtps2dq ymm7, ymm7
 	vpgatherdd ymm13, [rsi + ymm7], ymm4
 	

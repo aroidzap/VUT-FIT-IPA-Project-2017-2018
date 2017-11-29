@@ -129,18 +129,38 @@ transform_image_nearest_avx2_fma:
 	vsubps ymm0, ymm4, ymm6
 	;// ymm8 = 3w 3 3w 3 3w 3 3w 3
 	;// ymm6 = 0 4 0 4 0 4 0 4
+	;// ymm0 = 0 -1 0 -2 0 -3 0 -4
 
-	;// ymm0 = 0 3 0 2 0 1 0 0 - (0 4 0 4 0 4 0 4)	
 
-l_loop1:
+	;// ------------ REGISTER VALUES ------------
+
+	;// *ymm0 = 0 3 0 2 0 1 0 0 - (0 4 0 4 0 4 0 4)	
+	;// ymm1 = m4, m0, m4, m0, m4, m0, m4, m0
+	;// ymm2 = m5, m2, m5, m2, m5, m2, m5, m2
+	;// ymm3 = m3, m1, m3, m1, m3, m1, m3, m1
+	;// *ymm4 = TEMP
+	;// ymm5 = -1 w -1 w -1 w -1 w
+	;// ymm6 = 0 4 0 4 0 4 0 4
+	;// *ymm7 = TEMP
+	;// ymm8 = 3w 3 3w 3 3w 3 3w 3
+	;// ymm9 = h w h w h w h w
+	;// ymm10 = 0 0 0 0 0 0 0 0
+	;// ymm11 = 8x 0xffffffff
+	;// ymm12 = 0xffffffff0e0d0c0a0908060504020100ffffffff0e0d0c0a0908060504020100
+	;// *ymm13 = TEMP
+	;// *ymm14 = TEMP
+
+	;// registers with asterisk * are not constant within the loop
+
+_loop:
 	cmp ecx, 0
-	je l_break1
+	je _break
 
 	;// FIRST 4 PIXELS
 	;// get x and y position
 	vaddps ymm0, ymm0, ymm6
 	vcmpgeps ymm7, ymm0, ymm5
-	vpermilps ymm7, ymm7, 0xA0;//0b10100000
+	vpermilps ymm7, ymm7, 0xA0 ;//0b10100000
 	vandps ymm4, ymm5, ymm7
 	vsubps ymm0, ymm0, ymm4
 
@@ -151,18 +171,18 @@ l_loop1:
 	vfmadd213ps ymm7, ymm3, ymm4
 
 	;// truncate coordinate
-	vroundps ymm7, ymm7, 0 ;//TODO: check rounding mode
+	vroundps ymm7, ymm7, 0x0B ;//Round toward zero (truncate), Do not signal precision exception on SNaN
 
 	;// check coordinates
 	vcmpgeps ymm4, ymm7, ymm9
 	vcmpltps ymm13, ymm7, ymm10
 	vorps ymm4, ymm4, ymm13
-	vpermilps ymm13, ymm4, 0xB1;//0b10110001
+	vpermilps ymm13, ymm4, 0xB1 ;//0b10110001
 	vorps ymm4, ymm4, ymm13
 
 	;// transform coords to index
 	vmulps ymm7, ymm7, ymm8
-	vpermilps ymm13, ymm7, 0xB1;//0b10110001
+	vpermilps ymm13, ymm7, 0xB1 ;//0b10110001
 	vaddps ymm7, ymm7, ymm13
 
 	vorps ymm7, ymm7, ymm4
@@ -173,7 +193,7 @@ l_loop1:
 	;// get x and y position
 	vaddps ymm0, ymm0, ymm6
 	vcmpgeps ymm14, ymm0, ymm5
-	vpermilps ymm14, ymm14, 0xA0;//0b10100000
+	vpermilps ymm14, ymm14, 0xA0 ;//0b10100000
 	vandps ymm4, ymm5, ymm14
 	vsubps ymm0, ymm0, ymm4
 
@@ -184,18 +204,18 @@ l_loop1:
 	vfmadd213ps ymm14, ymm3, ymm4
 
 	;// truncate coordinate
-	vroundps ymm14, ymm14, 0 ;//TODO: check rounding mode
+	vroundps ymm14, ymm14, 0x0B ;//Round toward zero (truncate), Do not signal precision exception on SNaN
 
 	;// check coordinates
 	vcmpgeps ymm4, ymm14, ymm9
 	vcmpltps ymm13, ymm14, ymm10
 	vorps ymm4, ymm4, ymm13
-	vpermilps ymm13, ymm4, 0xB1;//0b10110001
+	vpermilps ymm13, ymm4, 0xB1 ;//0b10110001
 	vorps ymm4, ymm4, ymm13
 
 	;// transform coords to index
 	vmulps ymm14, ymm14, ymm8
-	vpermilps ymm13, ymm14, 0xB1;//0b10110001
+	vpermilps ymm13, ymm14, 0xB1 ;//0b10110001
 	vaddps ymm14, ymm14, ymm13
 
 	vorps ymm14, ymm14, ymm4
@@ -204,14 +224,14 @@ l_loop1:
 
 
 	;// MERGE COORDINATES
-	vblendps ymm7, ymm7, ymm14, 0xAA;//0b10101010
+	vblendps ymm7, ymm7, ymm14, 0xAA ;//0b10101010
 
 	vperm2f128 ymm14, ymm7, ymm7, 1
 
-	vpermilps ymm7, ymm7, 0xD8;//0b11011000
-	vpermilps ymm14, ymm14, 0x8D;//0b10001101
+	vpermilps ymm7, ymm7, 0xD8 ;//0b11011000
+	vpermilps ymm14, ymm14, 0x8D ;//0b10001101
 
-	vblendps ymm7, ymm7, ymm14, 0x3C;//0b00111100
+	vblendps ymm7, ymm7, ymm14, 0x3C ;//0b00111100
 
 	;// ymm7 = UV7id UV6id UV5id UV4id UV3id UV2id UV1id UV0id (id is 0xffffffff if not valid)
 
@@ -236,8 +256,8 @@ l_loop1:
 	add rdi, 24
 
 	sub ecx, 8
-	jmp l_loop1
-l_break1:
+	jmp _loop
+_break:
 
 	mov rsp,rbp
 	pop rbp

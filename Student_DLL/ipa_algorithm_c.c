@@ -104,6 +104,6 @@ void _ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, uns
 	float v = pivot.v;
 	mat2x3 transform_matrix_inv = { a, b, u - a*u - b*v, c, d, -c*u + v - d*v };
 
-	// call optimalized transformation function
+	// call optimized transformation function
 	transform_image_nearest_avx2_fma(input_data, output_data, transform_matrix_inv, width, height);
 }

@@ -108,9 +108,7 @@ transform_image_nearest_avx2_fma:
 	mov eax, r9d ;// width
 	movd xmm0, eax
 	vpbroadcastd ymm0, xmm0 ;// width
-	mov eax, -1
-	movd xmm11, eax
-	vpbroadcastd ymm11, xmm11 ;// -1
+	vpcmpeqd ymm11, ymm11 ;// -1
 	vblendps ymm5, ymm0, ymm11, 0xAA ;//0b10101010
 	vcvtdq2ps ymm5, ymm5
 	;// ymm5 = -1 w -1 w -1 w -1 w

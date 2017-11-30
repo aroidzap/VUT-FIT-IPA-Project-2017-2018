@@ -261,8 +261,9 @@ _loop:
 	vpermilps ymm7, ymm7, 0x39 ;//0b00111001
 	vblendps ymm13, ymm13, ymm7, 0x78 ;//0b01111000
 	vperm2f128 ymm7, ymm13, ymm13, 0x11
-	;//xmm13 -> B5R4G4B4 R3G3B3R2 G2B2R1G1 B1R0G0B0
-	;//xmm7  -> XXXXXXXX XXXXXXXX R7G7B7R6 G6B6R5G5
+	;//ymm13 -> XXXXXXXX XXXXXXXX R7G7B7R6 G6B6R5G5 B5R4G4B4 R3G3B3R2 G2B2R1G1 B1R0G0B0
+	;//xmm13 -> ymm13_low
+	;//xmm7  -> ymm13_high
 
 	;// check for remaining count < 8
 	cmp ecx, 8
@@ -282,8 +283,7 @@ _non_divisible_pixel_cnt:
 	and rsp, 0xfffffffffffffff0
 	mov rdx, rsp
 	sub rdx, 32
-	vmovaps [rdx], xmm13
-	vmovaps [rdx+16], xmm7
+	vmovaps [rdx], ymm13
 	
 	;// save remaining pixels to memory
 __loop_save_remaining:

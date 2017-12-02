@@ -30,8 +30,11 @@ typedef struct options_t {
 
 typedef float mat2x3[6];
 
-// requires width >= 4
-void transform_image_nearest_avx2_fma(unsigned char *input_data, unsigned char *output_data, mat2x3 matrix, unsigned int width, unsigned int height);
+// optimized solution, requires width >= 4
+void transform_image_nearest_avx2_fma(unsigned char *input_data, unsigned char *output_data, mat2x3 inv_matrix, unsigned int width, unsigned int height);
+
+// reference solution
+void transform_image_nearest(unsigned char *input_data, unsigned char *output_data, mat2x3 inv_matrix, unsigned int width, unsigned int height);
 
 bool load_args(int argc, char **argv, options *args){
     /*
@@ -106,4 +109,26 @@ void _ipa_algorithm_c(unsigned char *input_data, unsigned char *output_data, uns
 
 	// call optimized transformation function
 	transform_image_nearest_avx2_fma(input_data, output_data, transform_matrix_inv, width, height);
+}
+
+// reference solution
+void transform_image_nearest(unsigned char *input_data, unsigned char *output_data, mat2x3 inv_matrix, unsigned int width, unsigned int height) {
+	for (int x = 0; x < width; x++)
+	{
+		for (int y = 0; y < height; y++)
+		{
+			int tx = (int)(inv_matrix[0] * x + inv_matrix[1] * y + inv_matrix[2]);
+			int ty = (int)(inv_matrix[3] * x + inv_matrix[4] * y + inv_matrix[5]);
+
+			if (tx < width && tx >0 && ty < height && ty > 0)
+			{
+				int id = 3 * (y*width + x);
+				int tid = 3 * (ty*width + tx);
+
+				output_data[id + 0] = input_data[tid + 0];
+				output_data[id + 1] = input_data[tid + 1];
+				output_data[id + 2] = input_data[tid + 2];
+			}
+		}
+	}
 }

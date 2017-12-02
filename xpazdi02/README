@@ -1,0 +1,4 @@
+!!! Řešení není finální a neobsahuje dokumentaci !!!
+
+1) řešení je ve verzi 64bit
+2) řešení využívá FMA instrukce, lze je vypnout při překladu (NASM) přepínačem WITHOUT_FMA

@@ -186,8 +186,8 @@ _loop:
 	vpermilps ymm7, ymm0, 0xB1 ;//0b10110001
 	_vfmadd213ps ymm7, ymm3, ymm4
 
-	;// truncate coordinate
-	vroundps ymm7, ymm7, 0x0B ;//Round toward zero (truncate), Do not signal precision exception on SNaN
+	;// round coordinate (nearest-neighbor interpolation)
+	vroundps ymm7, ymm7, 0x08 ;//Round to nearest (even), Do not signal precision exception on SNaN
 
 	;// check coordinates (u,v) in ( <0, width-1>, <0, height-1> )
 	vcmpgeps ymm4, ymm7, ymm9
@@ -219,8 +219,8 @@ _loop:
 	vpermilps ymm14, ymm0, 0xB1 ;//0b10110001
 	_vfmadd213ps ymm14, ymm3, ymm4
 
-	;// truncate coordinate
-	vroundps ymm14, ymm14, 0x0B ;//Round toward zero (truncate), Do not signal precision exception on SNaN
+	;// round coordinate (nearest-neighbor interpolation)
+	vroundps ymm14, ymm14, 0x08 ;//Round to nearest (even), Do not signal precision exception on SNaN
 
 	;// check coordinates (u,v) in ( <0, width-1>, <0, height-1> )
 	vcmpgeps ymm4, ymm14, ymm9

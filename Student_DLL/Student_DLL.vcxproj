@@ -55,6 +55,11 @@
     <Link>
       <Profile>true</Profile>
     </Link>
+    <NASM>
+      <Outputswitch>4</Outputswitch>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ErrorReportingFormat>1</ErrorReportingFormat>
+    </NASM>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -68,6 +73,10 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <NASM>
+      <Outputswitch>4</Outputswitch>
+      <ErrorReportingFormat>1</ErrorReportingFormat>
+    </NASM>
   </ItemDefinitionGroup>
   <ItemGroup>
     <NASM Include="xpazdi02.s">

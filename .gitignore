@@ -4,6 +4,3 @@
 .vs/
 *.vc.db
 *.vc.opendb
-
-!Debug/input.jpg
-![Dd]ebug/opencv*.dll

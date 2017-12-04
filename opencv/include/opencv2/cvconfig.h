@@ -5,22 +5,22 @@
 #define BUILD_SHARED_LIBS
 
 /* OpenCV intrinsics optimized code */
-#define CV_ENABLE_INTRINSICS
+/* #undef CV_ENABLE_INTRINSICS */
 
 /* OpenCV additional optimized code */
 /* #undef CV_DISABLE_OPTIMIZATION */
 
 /* Compile for 'real' NVIDIA GPU architectures */
-#define CUDA_ARCH_BIN ""
+//#define CUDA_ARCH_BIN ""
 
 /* Create PTX or BIN for 1.0 compute capability */
 /* #undef CUDA_ARCH_BIN_OR_PTX_10 */
 
 /* NVIDIA GPU features are used */
-#define CUDA_ARCH_FEATURES ""
+//#define CUDA_ARCH_FEATURES ""
 
 /* Compile for 'virtual' NVIDIA PTX architectures */
-#define CUDA_ARCH_PTX ""
+//#define CUDA_ARCH_PTX ""
 
 /* AVFoundation video libraries */
 /* #undef HAVE_AVFOUNDATION */
@@ -72,13 +72,13 @@
 #define HAVE_D3D9
 
 /* DirectShow Video Capture library */
-#define HAVE_DSHOW
+/* #undef HAVE_DSHOW */
 
 /* Eigen Matrix & Linear Algebra Library */
 /* #undef HAVE_EIGEN */
 
 /* FFMpeg video library */
-#define HAVE_FFMPEG
+/* #undef HAVE_FFMPEG */
 
 /* Geospatial Data Abstraction Library */
 /* #undef HAVE_GDAL */
@@ -102,9 +102,9 @@
 /* #undef HAVE_INTELPERC */
 
 /* Intel Integrated Performance Primitives */
-#define HAVE_IPP
-#define HAVE_IPP_ICV
-#define HAVE_IPP_IW
+/* #undef HAVE_IPP */
+/* #undef HAVE_IPP_ICV */
+/* #undef HAVE_IPP_IW */
 
 /* Intel IPP Async */
 /* #undef HAVE_IPP_A */
@@ -139,7 +139,7 @@
 /* #undef HAVE_OPENCL_SVM */
 
 /* OpenEXR codec */
-#define HAVE_OPENEXR
+/* #undef HAVE_OPENEXR */
 
 /* OpenGL support*/
 /* #undef HAVE_OPENGL */
@@ -181,7 +181,7 @@
 /* #undef HAVE_UNICAP */
 
 /* Video for Windows support */
-#define HAVE_VFW
+/* #undef HAVE_VFW */
 
 /* V4L2 capturing support in videoio.h */
 /* #undef HAVE_VIDEOIO */
@@ -242,7 +242,7 @@
 #endif
 
 /* OpenCV trace utilities */
-#define OPENCV_TRACE
+/* #undef OPENCV_TRACE */
 
 
 #endif // OPENCV_CVCONFIG_H_INCLUDED

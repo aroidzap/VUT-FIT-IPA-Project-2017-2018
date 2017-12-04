@@ -1,6 +1,6 @@
-**/[Dd]ebug*/*
-**/[Rr]elease*/*
-[Bb]in
+[Dd]ebug/
+[Rr]elease/
+**/[Bb]in*/*
 .vs/
-*.vc.db
-*.vc.opendb
+!opencv/x64/vc15/bin/*.dll
+!opencv/x64/vc15/lib/*.lib

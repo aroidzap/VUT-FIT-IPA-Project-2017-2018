@@ -180,7 +180,7 @@ _loop:
 	vandps ymm4, ymm5, ymm7
 	vsubps ymm0, ymm0, ymm4
 
-	;// perform coordinate transformation (u,v) = M * (u,v)
+	;// perform coordinate transformation (u,v) = M * (u,v,1)
 	vmovaps ymm4, ymm1
 	_vfmadd213ps ymm4, ymm0, ymm2
 	vpermilps ymm7, ymm0, 0xB1 ;//0b10110001
@@ -213,7 +213,7 @@ _loop:
 	vandps ymm4, ymm5, ymm14
 	vsubps ymm0, ymm0, ymm4
 
-	;// perform coordinate transformation (u,v) = M * (u,v)
+	;// perform coordinate transformation (u,v) = M * (u,v,1)
 	vmovaps ymm4, ymm1
 	_vfmadd213ps ymm4, ymm0, ymm2
 	vpermilps ymm14, ymm0, 0xB1 ;//0b10110001

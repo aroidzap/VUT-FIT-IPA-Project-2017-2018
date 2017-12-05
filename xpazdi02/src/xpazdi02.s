@@ -78,6 +78,22 @@ transform_image_nearest_avx2_fma:
 	push rbp
 	mov rbp,rsp
 
+	;//preserve xmm6:xmm14, rsi, rdi
+	and rsp, 0xfffffffffffffff0
+	sub rsp, 144
+	vmovaps  [rsp], xmm6
+	vmovaps  [rsp+16], xmm7
+	vmovaps  [rsp+32], xmm8
+	vmovaps  [rsp+48], xmm9
+	vmovaps  [rsp+64], xmm10
+	vmovaps  [rsp+80], xmm11
+	vmovaps  [rsp+96], xmm12
+	vmovaps  [rsp+112], xmm13
+	vmovaps  [rsp+128], xmm14
+	push rsi
+	push rdi
+
+	;// arguments:
 	mov rsi, rcx ;// rsi == input_data
 	mov rdi, rdx ;// rdi == output_data
 	;// r8 == matrix
@@ -280,7 +296,6 @@ _loop:
 
 _non_divisible_pixel_cnt: 
 	;//save last few pixels, which count is not divisible by 8
-	and rsp, 0xfffffffffffffff0
 	mov rdx, rsp
 	sub rdx, 32
 	vmovaps [rdx], ymm13
@@ -298,6 +313,19 @@ __loop_save_remaining:
 	jg __loop_save_remaining
 
 _break:
+	;//restore xmm6:xmm14, rsi, rdi
+	pop rdi
+	pop rsi
+	vmovaps xmm6, [rsp]
+	vmovaps xmm7, [rsp+16]
+	vmovaps xmm8, [rsp+32]
+	vmovaps xmm9, [rsp+48]
+	vmovaps xmm10, [rsp+64]
+	vmovaps xmm11, [rsp+80]
+	vmovaps xmm12, [rsp+96]
+	vmovaps xmm13, [rsp+112]
+	vmovaps xmm14, [rsp+128]
+
 	mov rsp,rbp
 	pop rbp
 	ret 0
